@@ -1,0 +1,114 @@
+---
+title: "HW1"
+author: "David Slusser"
+date: "9/13/2020"
+output: html_document
+---
+
+R Markdown file for my first homework assignment
+Data comes from ESPN for qualified hitters in the 2019 MLB season
+https://www.espn.com/mlb/stats/player/_/season/2019/seasontype/2
+```{r setup, include=FALSE}
+library(readxl)
+ESPN <- read_excel("Desktop/ESPN.xlsx")
+```
+
+Looking at the variables we see
+```{r ESPN}
+library(dplyr)
+summary(ESPN)
+```
+
+Categorial Variables include Position (POS) and Team and categorical includes Home Runs (HR), Runs Batted In (RBI), Total Bases (TB), On Base Plus Slugging (OPS) and Wins Above Replacement (WAR)
+
+Let's look at RBIs by team of qualified batters
+```{r ESPN}
+library(dplyr)
+ESPN %>%
+  select(Team, RBI) %>%
+  group_by(Team) %>%
+  summarise_all(funs(min, median, mean, max))
+```
+
+But since HR is RBI, looking at how many runs the batter batted in excluding himself could matter
+
+```{r ESPN}
+library(dplyr)
+ESPN %>%
+  select(Team, RBI, HR) %>%
+  mutate(RBI = RBI - HR) %>%
+  select(Team, RBI) %>%
+  group_by(Team) %>%
+  summarise_all(funs(min, median, mean, max))
+```
+
+Instead of looking at just team, a look at batter and their position
+```{r ESPN}
+library(dplyr)
+ESPN %>%
+  select(NAME, POS, RBI, HR) %>%
+  mutate(RBI = RBI - HR) %>%
+  select(NAME, POS, RBI) %>%
+  group_by(NAME, POS) %>%
+  arrange(desc(RBI)) # Which player had the most others batted in among qualified hitters?
+```
+What Position brings in the most?
+```{r ESPN}
+library(dplyr)
+ESPN %>%
+  select(POS, RBI, HR) %>%
+  mutate(RBI = RBI - HR) %>%
+  select(POS, RBI) %>%
+  group_by(POS) %>%
+  summarise_all(funs(min, median, mean, max)) %>%
+  arrange(desc(median))
+```
+
+Shortstops have the least amount of others batted in with first baseman having the most. For fantasy purposes, signals the marginal value is highest for SS (max of 84) is higher than 1B, and should focus on SS more than 1B.
+
+Let's plot the distribution of RBI from qualified hitters by position
+```{r ESPN}
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(ggridges)
+
+ESPN %>%
+  select(POS, RBI, HR) %>%
+  filter(POS!= "DH") %>%
+  mutate(RBI = RBI - HR) %>%
+  select(POS, RBI) %>%
+  ggplot(aes(x = RBI, y = POS)) +
+  stat_density_ridges(color = "#003831", fill = "#EFB21E", quantile_lines = TRUE, quantiles = 2) +
+  labs(title = "Distribution of Others Batted In (RBI)",
+       subtitle = "Qualified Hitters: 2019",
+       caption = "Data: ESPN.com",
+       x = "RBI",
+       y = "Position") +
+  theme_minimal()
+```
+
+In baseball, WAR is a measurement of how good a player is relative to a replacement level player. In fantasy, RBIs matter in terms of winning. How do the differences compare? Do the RBIs that matter for fantasy correlate with WAR that matters in a real baseball game?
+Let's look at RBIs by team of qualified batters
+```{r ESPN}
+library(dplyr)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(ggridges)
+library(ggpubr)
+
+ESPN %>%
+  select(RBI, WAR) %>%
+  ggplot(aes(x = RBI, y = WAR)) +
+  geom_point(color = "#003831") +
+  stat_smooth(method = "lm", col = "#EFB21E") +
+  stat_cor() +
+  labs(title = "How Well Do RBI and WAR Correlate?",
+       subtitle = "Qualified Hitters: 2019",
+       caption = "Data: ESPN.com",
+       x = "RBI",
+       y = "WAR") +
+  theme_minimal()
+```
+We find that WAR correlates at a sig level (p <= 0.05), and that RBI totals explain 47% percent of the variation in WAR.  This implies that the players that are good for fantasy are good for teams overall at a basic level, but more analysis would be needed.
