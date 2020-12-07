@@ -1,0 +1,112 @@
+---
+title: "Heirarchial Clustering"
+author: "David Slusser"
+date: "12/6/2020"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+## R Markdown
+
+This is an R Markdown file for the fifth homework assignment.
+This is looking at a consumer ratings for 77 breakfast cereals.
+Use hierarchical clusting model and comparing it to K-Means
+
+```{r cereals}
+# Load in the data packages that are needed for hierarchical clusting and agnes
+library(readr) # To load in csv data files
+library(cluster) # For agnes function and compare clustering
+library(dplyr) # For standardized
+
+# First load in the cereal data set
+# It is a csv file located in my Machine Learning course folder
+Cereals <- read_csv("~/Desktop/School/Graduate/Machine Learning/HW/Data/Cereals.csv")
+
+head(Cereals) # Examine the Cereals dataset to look at the variables included
+Cereals <- na.omit(Cereals) # Remove the missing values
+head(Cereals) # Look at the Cereals dataset to examine the missing values
+
+# We need to scale the data instead of using arbitraty units
+# (for instance, calories and proteins are different scales so we want to be able to compare and thus
+# need to standardize)
+
+Cereals.norm <- Cereals %>%
+    as_tibble() %>%
+    mutate(across(where(is.numeric), scale))
+
+# Get the Euclidean distance measurement
+distance <- dist(Cereals.norm[4:16], method = "euclidean")
+
+# Now we're going to to use the agnes function to compute the different linkage methods
+# We want to use single, complete and average linkage along with Ward
+# We use the cluster package for computing the linkage methods
+
+hc_single <- agnes(Cereals.norm[4:16], method = "single")
+hc_complete <- agnes(Cereals.norm[4:16], method = "complete")
+hc_average <- agnes(Cereals.norm[4:16], method = "average")
+hc_ward <- agnes(Cereals.norm[4:16], method = "ward")
+
+# Now we want to see the results of the coefficients
+# The best method has the lowest coefficient
+print(hc_single) # 0.607
+print(hc_complete) # 0.835
+print(hc_average) # 0.777
+print(hc_ward) # 0.904
+
+# Let us visualize the ward linkage since it has the highest 
+pltree(hc_ward, cex = 0.6, hang = -1, main = "Dendrogram of agnes") 
+# We find that there would be 6-clusters
+
+# Visualize the 6 clusters
+plot(hc_ward)
+rect.hclust(hc_ward, k = 6, border = 1:6)
+
+```
+
+Single linkage agglomerative coefficient: 0.607
+Complete linkage agglomerative coefficient: 0.835
+Average linkage agglomerative coefficient: 0.777
+Ward agglomerative coefficient: 0.904
+
+Since the ward agglomerative coefficient is the highest, this is the best linkage method
+
+Hierarchical clustering produces consistent results, number of clusters picked from the dendrogram,
+and it takes hierarchical clustering longer to run
+
+K-means is faster to run since computation time is linear, k-means starts with random number of clusters,
+and what number of clusters you want the data to be divided into (i.e. you set K)
+
+Based on the dendrogram, there would be 6 clusters
+```{r Cereals clusters}
+
+# Look at stability of the clusters
+# 6 centers from what we found in the dendrogram
+# Use nstart = 25 for 25 initial centroids
+model <- kmeans(Cereals.norm[4:16], centers = 6, nstart = 25)
+100 * model$betweenss / model$totss # Calculate percentage of those that stay in their cluster
+# We get 0.5863, or 58.63%
+
+# We now want to look at healthy cereal groups
+# We don't want to standardize because of the importance of the measurements for health priorities
+# For instance, average (i.e. z = 0) sugar might be unhealthy because it is in reference to other sugars
+# Use the unstandardized dataset
+# Use k-means
+
+# We want relevant health variables so only columns 4:12
+cl <- kmeans(Cereals[4:12], centers = 6, nstart = 25)
+Cereals <- data.frame(Cereals, cl$cluster)
+
+# View the clusters
+cl$centers
+```
+
+We find that, using 6 clusters (what we found above) with 25 initial centroids that 58.63% of the cereals stay within the intial cluster of cereals.
+
+The data shouldn't be standardized because units matter here. When it comes to health, it is important to
+know the intake of certain food choices - such as fiber and potassium - more than just the z-score. An average amount of sugar, for instance, can still be unhealthy given the comparison of other cereals. As such, knowing what the unit is matters from a health perspective. We find that cluster 1 is likely the most healthy, since it is low calorie, high in protien, high in fiver, less carboydrates, and high in potassium and higher in vitamins
+
+
+The advantages of hierarchical clustering is the fact that there is no domain knowledge needed to set the clusters, you can just use the dendrogram to deduce the number. Hierarchical clustering also is easy to implement and has consistent results. This allows replication to be done, an important step for confirming research. The dendrogram is easy to understand the breakdown of the different subgroups within the main category (for example healhy cereal for the cereal category)
+
